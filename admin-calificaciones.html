@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Carga de Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="Libreria.ico" sizes="128x128">
+    <link rel="shortcut icon" href="Libreria.ico">
+    <link rel="apple-touch-icon" href="Libreria.png">
+    <title>Gestión de Calificaciones - Admin</title>
+    
+    <!-- Configuración de Tailwind para usar el color principal (Indigo) y la fuente Inter -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-500': '#4f46e5', // Indigo 600
+                        'primary-600': '#4338ca', // Indigo 700
+                        'offline': '#fb923c',    // Orange 400
+                        'sync-info': '#60a5fa',  // Blue 400
+                        'sync-success': '#4ade80', // Green 400
+                        'sync-error': '#f87171', // Red 400
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Estilos específicos necesarios que Tailwind no cubre directamente o para mejor visualización -->
+    <style>
+        .offline-indicator {
+            display: none;
+            transition: all 0.3s ease-in-out;
+        }
+        .calificaciones-grid {
+            display: grid;
+            gap: 1.5rem; /* 24px */
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        }
+        .calificacion-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #e5e7eb;
+        }
+        .calificacion-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .offline-pending {
+            border-left: 5px solid #fb923c; /* Orange 400 */
+        }
+        .calificacion-info {
+            flex-grow: 1;
+            padding-right: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    
+    <!-- Indicador de Offline (Fijo en la parte superior) -->
+    <div class="offline-indicator fixed top-0 left-0 right-0 z-50 p-3 text-center text-white font-medium bg-offline" id="offlineIndicator">
+        ⚠️ Modo offline - Las calificaciones se guardarán localmente
+    </div>
+    
+    <!-- Header/Nav Bar -->
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-3 logo-container">
+                <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-500">
+                    <img src="images/logo_libros.jpg" alt="Logo Librery" class="w-full h-full object-cover">
+                </div>
+                <div class="text-xl font-bold text-gray-800 logo-text">Librery</div>
+            </a>
+            <div class="text-sm font-semibold connection-status transition duration-300" id="connectionStatus">
+                <!-- Se rellena con JS -->
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content Container -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <h2 class="text-3xl font-extrabold text-gray-900 mb-8 border-b border-primary-500 pb-2">Gestión de Calificaciones <span class="text-xl text-primary-500 block sm:inline-block">(Admin)</span></h2>
+        
+        <!-- Sección de Notificaciones Push -->
+        <div class="notifications-section bg-white p-6 rounded-xl shadow-lg mb-8 border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">Alertas y Notificaciones</h3>
+            <button onclick="solicitarNotificaciones()" id="notificationsBtn" class="notifications-btn bg-primary-500 hover:bg-primary-600 text-white font-medium py-3 px-6 rounded-lg transition duration-300 text-sm w-full sm:w-auto">
+                🔔 Activar Notificaciones
+            </button>
+            <div id="notificationsStatus" class="notifications-status mt-3 p-2 rounded-md font-medium text-center">
+                <!-- Estado de la activación -->
+            </div>
+        </div>
+        
+        <!-- Formulario de Calificaciones -->
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-primary-500/20">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4">Ingresar Nueva Calificación</h3>
+            <div class="space-y-4">
+                <input type="number" id="califId" placeholder="ID Calificación (opcional para edición)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" disabled>
+                
+                <select id="califLibroId" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 bg-white appearance-none">
+                    <option value="">Selecciona un libro</option>
+                </select>
+                
+                <input type="number" id="califCalificacion" placeholder="Calificación (0-10)" min="0" max="10" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
+                
+                <textarea id="califResena" placeholder="Reseña" required rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
+                
+                <div id="error-message" class="error-message text-red-600 font-medium text-sm"></div>
+                
+                <button onclick="saveCalificacion()" id="saveButton" class="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-md hover:shadow-lg disabled:bg-gray-400">
+                    Guardar Calificación
+                </button>
+            </div>
+        </div>
+
+        <!-- Indicador de Sincronización (Temporal) -->
+        <div class="sync-status hidden p-3 rounded-lg font-medium text-center mb-4 transition duration-300" id="syncStatus"></div>
+
+        <!-- Loader -->
+        <div class="loader text-center text-primary-500 font-semibold text-lg py-4 hidden">
+            <svg class="animate-spin h-5 w-5 mr-3 inline text-primary-500" viewBox="0 0 24 24"></svg>
+            Cargando...
+        </div>
+
+        <!-- Lista de Calificaciones -->
+        <div class="calificaciones-table-container bg-white p-6 rounded-xl shadow-lg">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 border-b pb-4">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">📊 Lista de Calificaciones</h3>
+                <div class="flex space-x-3 table-actions w-full sm:w-auto">
+                    <button onclick="toggleOfflineData()" id="toggleOfflineBtn" class="text-sm font-medium py-2 px-4 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 transition duration-150">
+                        Mostrar datos offline
+                    </button>
+                    <button onclick="forceSync()" id="syncButton" class="hidden bg-sync-info hover:bg-blue-500 text-white font-medium py-2 px-4 rounded-lg transition duration-150 text-sm">
+                        🔄 Sincronizar
+                    </button>
+                </div>
+            </div>
+            
+            <div class="calificaciones-grid" id="calificacionesList">
+                <!-- Las calificaciones se cargarán aquí -->
+            </div>
+            
+            <!-- Estado vacío (Empty State) -->
+            <div class="empty-state hidden text-center py-10 text-gray-500">
+                <div class="text-5xl mb-3">📝</div>
+                <div class="text-xl font-semibold">No se encontraron calificaciones</div>
+                <div class="text-sm mt-1">Agrega tu primera calificación usando el formulario superior.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="pwa-constants.js"></script>
+    <script src="firebase-config.js"></script> 
+    <script>
+        // ========== CLASES DE ESTADO Y UTILIDADES (Basadas en Tailwind) ==========
+        function showSyncStatus(message, type) {
+            const status = document.getElementById('syncStatus');
+            status.textContent = message;
+            status.classList.remove('hidden', 'sync-success', 'sync-error', 'sync-info');
+            
+            let classType = '';
+            switch (type) {
+                case 'success':
+                    classType = 'bg-sync-success/20 text-green-700 border border-sync-success';
+                    break;
+                case 'error':
+                    classType = 'bg-sync-error/20 text-red-700 border border-sync-error';
+                    break;
+                case 'info':
+                default:
+                    classType = 'bg-sync-info/20 text-blue-700 border border-sync-info';
+                    break;
+            }
+
+            status.className = `sync-status p-3 rounded-lg font-medium text-center mb-4 transition duration-300 ${classType}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.classList.add('hidden');
+            }, 5000);
+        }
+
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            const status = document.getElementById('connectionStatus');
+            const syncButton = document.getElementById('syncButton');
+            
+            if (isOnline) {
+                indicator.style.display = 'none';
+                status.textContent = '🟢 En línea';
+                status.className = 'text-sm font-semibold text-green-600 transition duration-300';
+                syncButton.style.display = pendingCalificaciones.length > 0 ? 'inline-block' : 'none';
+            } else {
+                indicator.style.display = 'block';
+                status.textContent = '🔴 Offline';
+                status.className = 'text-sm font-semibold text-red-600 transition duration-300';
+                syncButton.style.display = 'none';
+            }
+        }
+
+        // Modificación de la función displayCalificaciones para usar las nuevas clases Tailwind
+        function displayCalificaciones(calificaciones) {
+            const list = document.getElementById('calificacionesList');
+            const emptyState = document.querySelector('.empty-state');
+            
+            if (!calificaciones || calificaciones.length === 0) {
+                list.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            list.innerHTML = '';
+            calificaciones.forEach(calif => {
+                const card = document.createElement('div');
+                card.className = 'calificacion-card bg-white border-gray-200';
+                if (calif.offline || calif.status === 'pending') {
+                    card.classList.add('offline-pending'); // Estilo de borde naranja
+                }
+                
+                // Determinar el color del badge de calificación
+                let badgeColor = 'bg-green-500';
+                if (calif.calificacion < 5) {
+                    badgeColor = 'bg-red-500';
+                } else if (calif.calificacion < 8) {
+                    badgeColor = 'bg-yellow-500';
+                }
+                
+                card.innerHTML = `
+                    <div class="calificacion-info flex-grow pr-4 space-y-1">
+                        <div class="text-lg font-bold text-primary-600 libro-titulo flex items-center">
+                            ${calif.titulo || 'Libro no disponible'}
+                            ${calif.offline ? '<span class="offline-badge ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-offline rounded-full">Pendiente</span>' : ''}
+                        </div>
+                        <div class="calificacion-meta text-xs text-gray-500">
+                            <span class="font-medium">ID Libro: ${calif.idLibro}</span>
+                        </div>
+                        <div class="text-sm text-gray-700 mt-2 resena-text line-clamp-2">${calif.resena}</div>
+                    </div>
+                    <div class="calificacion-stars text-right flex-shrink-0">
+                        <div class="stars-value text-2xl font-extrabold text-white rounded-full h-12 w-12 flex items-center justify-center mx-auto ${badgeColor}">
+                            ${calif.calificacion}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">/10</div>
+                    </div>`;
+                list.appendChild(card);
+            });
+        }
+
+        function toggleOfflineData() {
+            showingOfflineData = !showingOfflineData;
+            const button = document.getElementById('toggleOfflineBtn');
+            if (showingOfflineData) {
+                button.textContent = 'Mostrar datos del servidor';
+                button.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+                button.classList.add('bg-primary-500', 'text-white', 'hover:bg-primary-600');
+                displayCalificaciones([...cachedCalificaciones, ...pendingCalificaciones]);
+            } else {
+                button.textContent = 'Mostrar datos offline';
+                button.classList.add('bg-gray-50', 'hover:bg-gray-100');
+                button.classList.remove('bg-primary-500', 'text-white', 'hover:bg-primary-600');
+                fetchCalificaciones();
+            }
+        }
+
+        // =======================================================================
+        // ========== FUNCIONES DE NOTIFICACIONES (Se mantienen) ==========
+        // Nota: Las funciones 'solicitarNotificaciones', 'guardarTokenEnBD', y 'verificarEstadoNotificaciones'
+        // se mantienen igual, solo sus elementos HTML referenciados ahora tienen estilo Tailwind.
+
+        async function solicitarNotificaciones() {
+            const btn = document.getElementById('notificationsBtn');
+            const status = document.getElementById('notificationsStatus');
+            
+            // Estilos de estado inicial
+            btn.disabled = true;
+            btn.textContent = 'Solicitando permiso...';
+            status.textContent = 'Procesando...';
+            status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-sync-info bg-sync-info/20';
+            
+            try {
+                // Cargar Firebase MODULAR (versión moderna)
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js');
+                const { getMessaging, getToken, isSupported } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js');
+                
+                // Verificar compatibilidad
+                const messagingSupported = await isSupported();
+                if (!messagingSupported) {
+                    throw new Error('Firebase Messaging no es compatible con este navegador');
+                }
+                
+                // Inicializar Firebase
+                const app = initializeApp(firebaseConfig);
+                const messaging = getMessaging(app);
+                
+                // Registrar Service Worker estándar (ruta hardcodeada, como en el original)
+                let serviceWorkerRegistration;
+                if ('serviceWorker' in navigator) {
+                    try {
+                        console.log('🔄 Registrando Service Worker estándar...');
+                        
+                        const swPath = '/TRABAJUCHOS/cuatri10B/domingo/AppWebProgresivaPushNoticiations/templatemo_595_3d_coverflow/firebase-messaging-sw.js';
+                        serviceWorkerRegistration = await navigator.serviceWorker.register(swPath, {
+                            scope: '/TRABAJUCHOS/cuatri10B/domingo/AppWebProgresivaPushNoticiations/templatemo_595_3d_coverflow/',
+                            updateViaCache: 'none'
+                        });
+                        
+                        // Esperar a que esté activo
+                        if (serviceWorkerRegistration.installing) {
+                            await new Promise(resolve => {
+                                serviceWorkerRegistration.installing.addEventListener('statechange', (event) => {
+                                    if (event.target.state === 'activated') {
+                                        resolve();
+                                    }
+                                });
+                            });
+                        }
+                        
+                    } catch (swError) {
+                        throw new Error('No se pudo registrar el Service Worker: ' + swError.message);
+                    }
+                } else {
+                    throw new Error('Service Worker no soportado en este navegador');
+                }
+                
+                // Pedir permiso para notificaciones
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    
+                    // Obtener token FCM
+                    const token = await getToken(messaging, { 
+                        vapidKey: VAPID_KEY,
+                        serviceWorkerRegistration: serviceWorkerRegistration
+                    });
+                    
+                    if (token) {
+                        await guardarTokenEnBD(token);
+                        
+                        status.textContent = '✅ Notificaciones activadas correctamente';
+                        status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-green-700 bg-sync-success/20';
+                        btn.style.display = 'none';
+                        showSyncStatus('🔔 Notificaciones activadas - Recibirás alertas de nuevas calificaciones', 'success');
+                        
+                    } else {
+                        throw new Error('No se pudo obtener el token FCM');
+                    }
+                } else {
+                    throw new Error('Permiso denegado para notificaciones');
+                }
+            } catch (error) {
+                console.error('❌ Error completo:', error);
+                
+                let errorMessage = '❌ Error al activar notificaciones';
+                
+                if (error.message.includes('Permiso denegado')) {
+                    errorMessage = '❌ Permiso denegado - Debes permitir notificaciones en tu navegador';
+                } else if (error.message.includes('Service Worker')) {
+                    errorMessage = '❌ Error técnico con Service Worker';
+                } else if (error.message.includes('no es compatible')) {
+                    errorMessage = '❌ Tu navegador no soporta notificaciones push';
+                }
+                
+                status.textContent = errorMessage;
+                status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-red-700 bg-sync-error/20';
+                btn.textContent = '🔔 Intentar nuevamente';
+                btn.disabled = false;
+                
+                showSyncStatus('❌ ' + errorMessage, 'error');
+            }
+        }
+
+        async function guardarTokenEnBD(token) {
+            try {
+                const response = await fetch('guardar_token.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: token,
+                        action: 'guardar_token'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    console.log('✅ Token guardado en BD');
+                } else {
+                    console.error('❌ Error guardando token:', result.message);
+                }
+            } catch (error) {
+                console.error('❌ Error enviando token:', error);
+            }
+        }
+
+        function verificarEstadoNotificaciones() {
+            const btn = document.getElementById('notificationsBtn');
+            const status = document.getElementById('notificationsStatus');
+            
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    btn.style.display = 'none';
+                    status.textContent = '✅ Notificaciones activadas';
+                    status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-green-700 bg-sync-success/20';
+                } else if (Notification.permission === 'denied') {
+                    btn.style.display = 'none';
+                    status.textContent = '❌ Notificaciones bloqueadas - Permite en configuración del navegador';
+                    status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-red-700 bg-sync-error/20';
+                } else {
+                    btn.style.display = 'inline-block';
+                    status.textContent = '🔔 Activa las notificaciones para recibir alertas';
+                    status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-blue-700 bg-sync-info/20';
+                }
+            } else {
+                btn.style.display = 'none';
+                status.textContent = '❌ Tu navegador no soporta notificaciones';
+                status.className = 'notifications-status mt-3 p-2 rounded-md font-medium text-center text-red-700 bg-sync-error/20';
+            }
+        }
+        
+        // =======================================================================
+        // ========== CÓDIGO EXISTENTE DE CALIFICACIONES (Se mantiene) ==========
+        let isOnline = navigator.onLine;
+        let showingOfflineData = false;
+        let pendingCalificaciones = [];
+        let cachedCalificaciones = [];
+
+        function showLoader(show) {
+            document.querySelector('.loader').style.display = show ? 'block' : 'none';
+        }
+
+        // loadLibros, populateLibrosSelect, loadLibrosFromCache, fetchCalificaciones, 
+        // loadCalificacionesFromCache, saveCalificacion, loadPendingCalificaciones, 
+        // checkAndSyncPending, forceSync y registrarServiceWorker
+        // se mantienen igual, usando IDs existentes.
+
+        function loadLibros() {
+            showLoader(true);
+            if (!isOnline) {
+                loadLibrosFromCache();
+                return;
+            }
+            fetch('gestionCalificaciones.php?action=lista_libros')
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta: ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    showLoader(false);
+                    if (data.success) {
+                        populateLibrosSelect(data.libros);
+                        saveToCache('libros', data.libros);
+                    } else {
+                        throw new Error(data.message);
+                    }
+                })
+                .catch(() => {
+                    showLoader(false);
+                    loadLibrosFromCache();
+                });
+        }
+
+        function populateLibrosSelect(libros) {
+            const select = document.getElementById('califLibroId');
+            select.innerHTML = '<option value="">Selecciona un libro</option>';
+            (libros || []).forEach(libro => {
+                const option = document.createElement('option');
+                option.value = libro.idLibro;
+                option.textContent = libro.titulo;
+                select.appendChild(option);
+            });
+        }
+
+        function loadLibrosFromCache() {
+            getFromCache('libros').then(libros => {
+                showLoader(false);
+                if (libros) populateLibrosSelect(libros);
+                else showSyncStatus('No hay libros disponibles offline', 'error');
+            });
+        }
+
+        function fetchCalificaciones() {
+            showLoader(true);
+            if (!isOnline && !showingOfflineData) {
+                showLoader(false);
+                loadCalificacionesFromCache();
+                return;
+            }
+            fetch('gestionCalificaciones.php?action=lista')
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta: ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    showLoader(false);
+                    if (data.success) {
+                        cachedCalificaciones = data.calificaciones || [];
+                        saveToCache('calificaciones', cachedCalificaciones);
+                        displayCalificaciones(cachedCalificaciones);
+                    } else {
+                        throw new Error(data.message);
+                    }
+                })
+                .catch(() => {
+                    showLoader(false);
+                    loadCalificacionesFromCache();
+                });
+        }
+
+        function loadCalificacionesFromCache() {
+            getFromCache('calificaciones').then(calificaciones => {
+                const allCalificaciones = [...(calificaciones || []), ...pendingCalificaciones];
+                displayCalificaciones(allCalificaciones);
+                if (!calificaciones && !pendingCalificaciones.length) {
+                    showSyncStatus('No hay calificaciones disponibles offline', 'error');
+                }
+            });
+        }
+
+        function saveCalificacion() {
+            const errorMsg = document.getElementById('error-message');
+            errorMsg.textContent = '';
+            const calificacion = {
+                idLibro: document.getElementById('califLibroId').value,
+                calificacion: document.getElementById('califCalificacion').value,
+                resena: document.getElementById('califResena').value.trim()
+            };
+            if (!calificacion.idLibro || !calificacion.calificacion || !calificacion.resena) {
+                errorMsg.textContent = 'Los campos Libro, Calificación y Reseña son requeridos.';
+                return;
+            }
+            if (calificacion.calificacion < 0 || calificacion.calificacion > 10) {
+                errorMsg.textContent = 'La calificación debe estar entre 0 y 10.';
+                return;
+            }
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = true;
+            saveButton.textContent = 'Guardando...';
+            fetch('gestionCalificaciones.php', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    action: 'guardar',
+                    idLibro: calificacion.idLibro,
+                    calificacion: calificacion.calificacion,
+                    resena: calificacion.resena
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error en la respuesta: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Guardar Calificación';
+                if (data.success) {
+                    showSyncStatus(
+                        data.offline
+                            ? '✅ Calificación guardada localmente. Se sincronizará cuando haya conexión.'
+                            : '✅ Calificación guardada exitosamente.',
+                        'success'
+                    );
+                    document.getElementById('califId').value = '';
+                    document.getElementById('califLibroId').value = '';
+                    document.getElementById('califCalificacion').value = '';
+                    document.getElementById('califResena').value = '';
+                    setTimeout(() => {
+                        loadPendingCalificaciones();
+                        if (!showingOfflineData) {
+                            fetchCalificaciones();
+                        } else {
+                            displayCalificaciones([...cachedCalificaciones, ...pendingCalificaciones]);
+                        }
+                    }, 1000);
+                } else {
+                    errorMsg.textContent = 'Error: ' + data.message;
+                }
+            })
+            .catch(error => {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Guardar Calificación';
+                errorMsg.textContent = 'Error al guardar: ' + error.message;
+                showSyncStatus('Error al guardar la calificación', 'error');
+            });
+        }
+
+        function loadPendingCalificaciones() {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                const messageChannel = new MessageChannel();
+                messageChannel.port1.onmessage = event => {
+                    if (event.data.type === 'PENDING_CALIFICACIONES') {
+                        pendingCalificaciones = event.data.data.map(calif => ({
+                            ...calif,
+                            offline: true
+                        }));
+                        updateConnectionStatus();
+                        if (showingOfflineData) {
+                            displayCalificaciones([...cachedCalificaciones, ...pendingCalificaciones]);
+                        }
+                    }
+                };
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'GET_PENDING_CALIFICACIONES'
+                }, [messageChannel.port2]);
+            } else {
+                pendingCalificaciones = [];
+                updateConnectionStatus();
+                if (showingOfflineData) {
+                    displayCalificaciones(cachedCalificaciones);
+                }
+            }
+        }
+
+        function checkAndSyncPending() {
+            if (pendingCalificaciones.length > 0 && isOnline && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(registration => {
+                    return registration.sync.register('calificaciones-sync');
+                }).catch(() => {
+                    showSyncStatus('Error al registrar sincronización', 'error');
+                });
+            }
+        }
+
+        function forceSync() {
+            checkAndSyncPending();
+        }
+
+
+        function registrarServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const swPath = '/TRABAJUCHOS/cuatri10B/domingo/AppWebProgresivaPushNoticiations/templatemo_595_3d_coverflow/firebase-messaging-sw.js';
+                
+                navigator.serviceWorker.register(swPath, {
+                    scope: '/TRABAJUCHOS/cuatri10B/domingo/AppWebProgresivaPushNoticiations/templatemo_595_3d_coverflow/'
+                })
+                .then((registration) => {
+                    console.log('✅ Service Worker estándar registrado:', registration);
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        console.log('🔄 Nuevo Service Worker encontrado:', newWorker);
+                    });
+                })
+                .catch((error) => {
+                    console.log('❌ Error registrando Service Worker estándar:', error);
+                });
+            }
+        }
+
+        window.onload = () => {
+            updateConnectionStatus();
+            loadLibros();
+            loadPendingCalificaciones();
+            setTimeout(fetchCalificaciones, 500);
+            verificarEstadoNotificaciones();
+            registrarServiceWorker();
+            
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.addEventListener('message', event => {
+                    if (event.data.type === 'syncCompleted') {
+                        showSyncStatus(
+                            `Sincronización completada: ${event.data.successful} exitosas, ${event.data.failed} fallidas`,
+                            event.data.failed === 0 ? 'success' : 'error'
+                        );
+                        loadPendingCalificaciones();
+                        if (!showingOfflineData) {
+                            fetchCalificaciones();
+                        }
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>

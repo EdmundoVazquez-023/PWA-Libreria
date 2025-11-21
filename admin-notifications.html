@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificaciones - Admin</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="Libreria.ico" sizes="128x128">
+    <link rel="shortcut icon" href="Libreria.ico">
+    <link rel="apple-touch-icon" href="Libreria.png">
+    <link rel="stylesheet" href="notificaciones.css">
+
+ 
+</head>
+<body>
+    <header class="header">
+        <a href="index.html" class="logo-container">
+            <div class="logo">
+                <img src="images/logo_libros.jpg" alt="Logo Librery">
+            </div>
+            <div class="logo-text">Librery</div>
+        </a>
+    </header>
+
+    <div class="notifications-container">
+        <h2>Notificaciones</h2>
+        <div class="loader">Cargando...</div>
+        <ul id="notificationList"></ul>
+    </div>
+
+    <script>
+        // Mostrar loader
+        function showLoader(show) {
+            document.querySelector('.loader').style.display = show ? 'block' : 'none';
+        }
+
+        // Cargar notificaciones al iniciar
+        window.onload = function() {
+            fetchNotificaciones();
+            window.addEventListener('scroll', () => {
+                document.querySelector('.header').classList.toggle('scrolled', window.scrollY > 0);
+            });
+        };
+
+        function fetchNotificaciones() {
+            showLoader(true);
+            fetch('gestionNotificaciones.php?action=lista')
+                .then(response => response.json())
+                .then(data => {
+                    showLoader(false);
+                    const list = document.getElementById('notificationList');
+                    list.innerHTML = '';
+                    if (data.success && data.notificaciones.length > 0) {
+                        data.notificaciones.forEach(notif => {
+                            const li = document.createElement('li');
+                            li.className = 'notification-item' + (notif.Leido === 0 ? ' unread' : '');
+                            li.innerHTML = `
+                                <div class="notification-title">${notif.Titulo}</div>
+                                <div class="notification-content">${notif.Contenido}</div>
+                                <div class="notification-date">${new Date(notif.Fecha_Hora).toLocaleString()}</div>
+                                <div class="notification-actions">
+                                    ${notif.ACTIONS ? `<button onclick="handleAction('${notif.ACTIONS}')">${notif.ACTIONS}</button>` : ''}
+                                </div>
+                            `;
+                            list.appendChild(li);
+                        });
+                    } else {
+                        list.innerHTML = '<li>No hay notificaciones disponibles.</li>';
+                    }
+                })
+                .catch(error => {
+                    showLoader(false);
+                    console.error('Error al cargar notificaciones:', error);
+                    document.getElementById('notificationList').innerHTML = '<li>Error al cargar notificaciones.</li>';
+                });
+        }
+
+        // Función placeholder para manejar acciones (puedes expandir según necesidades)
+        function handleAction(action) {
+            alert(`Acción: ${action}`);
+            // Aquí puedes implementar lógica para marcar como leída o redirigir
+        }
+    </script>
+</body>
+</html>

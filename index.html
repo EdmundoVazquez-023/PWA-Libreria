@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <meta name="theme-color" content="#008080">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="Libreria.ico" sizes="128x128">
+    <link rel="shortcut icon" href="Libreria.ico">
+    <link rel="apple-touch-icon" href="Libreria.png">
+
+    <title>Librery</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        /* Estilos adicionales para el botón de cerrar sesión */
+        .user-menu {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            margin-right: 20px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 20px;
+            transition: background-color 0.3s;
+        }
+
+        .user-info:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #008080;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-name {
+            color: white;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .logout-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Indicador de conexión */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+        }
+
+        .offline-indicator {
+            background: #ff9800;
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: none;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="offline-indicator" id="offlineIndicator">
+        ⚠️ Modo offline - Algunas funciones pueden estar limitadas
+    </div>
+
+    <section class="login-section" id="loginSection">
+        <div class="login-container">
+            <h2>Iniciar Sesión</h2>
+            <input type="text" id="emailInput" placeholder="Correo Electrónico">
+            <input type="password" id="passwordInput" placeholder="Contraseña">
+            <button onclick="login()">Iniciar Sesión</button>
+        </div>
+    </section>
+
+    <div class="dashboard" id="dashboard">
+        <header class="header" id="header">
+            <a href="#home" class="logo-container">
+                <div class="logo">
+                    <img src="images/logo_libros.jpg" alt="Logo Librery">
+                </div>
+                <div class="logo-text">Librery</div>
+            </a>
+            
+            <nav class="main-menu" id="mainMenu">
+                <a href="#home" class="menu-item active">Home</a>
+                <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="menu-item external">GitHub</a>
+            </nav>
+
+            <!-- Menú de usuario con botón de cerrar sesión -->
+            <div class="user-menu" id="userMenu" style="display: none;">
+                <div class="user-info" id="userInfo">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <span class="user-name" id="userName">Usuario</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                    </svg>
+                    Cerrar Sesión
+                </button>
+            </div>
+            
+            <div class="menu-toggle" id="menuToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </header>
+
+        <section id="home" class="section">
+            <div class="coverflow-wrapper">
+                <div class="info">
+                    <h2 id="current-title">The Great Gatsby</h2>
+                    <p id="current-description">A tale of wealth, love, and the American Dream in the Roaring Twenties.</p>
+                </div>
+
+                <div class="coverflow-container" tabindex="0">
+                    <div class="coverflow" id="coverflow">
+                        <div class="coverflow-item" data-index="0">
+                            <div class="cover image-loading">
+                                <img src="images/libro7.jpeg" alt="Mountain Landscape" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                        <div class="coverflow-item" data-index="1">
+                            <div class="cover image-loading">
+                                <img src="images/libro6.jpeg" alt="Forest Path" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                        <div class="coverflow-item" data-index="2">
+                            <div class="cover image-loading">
+                                <img src="images/libro5.webp" alt="Lake Reflection" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                        <div class="coverflow-item" data-index="3">
+                            <div class="cover image-loading">
+                                <img src="images/libro4.jpeg" alt="Ocean Sunset" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                        <div class="coverflow-item" data-index="4">
+                            <div class="cover image-loading">
+                                <img src="images/libro3.jpeg" alt="Desert Dunes" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                        <div class="coverflow-item" data-index="5">
+                            <div class="cover image-loading">
+                                <img src="images/libro2.jpeg" alt="Starry Night" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                        <div class="coverflow-item" data-index="6">
+                            <div class="cover image-loading">
+                                <img src="images/libro1.jpg" alt="Waterfall" loading="lazy">
+                            </div>
+                            <div class="reflection"></div>
+                        </div>
+                    </div>
+
+                    <button class="nav-button prev" onclick="navigate(-1)">‹</button>
+                    <button class="nav-button next" onclick="navigate(1)">›</button>
+
+                    <div class="dots-container" id="dots"></div>
+                    
+                    <button class="play-pause-button" id="playPauseBtn" onclick="toggleAutoplay()">
+                        <span class="play-icon">▶</span>
+                        <span class="pause-icon" style="display: none;">❚❚</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-copyright">
+                    © 2025 3D Book Coverflow. All rights reserved. | Designed by <a href="https://templatemo.com" target="_blank" rel="noopener noreferrer">TemplateMo</a>
+                </div>
+                <div class="footer-links">
+                    <a href="#privacy" onclick="event.preventDefault(); alert('Privacy Policy page would go here');">Privacy Policy</a>
+                    <a href="#terms" onclick="event.preventDefault(); alert('Terms of Service page would go here');">Terms of Service</a>
+                </div>
+            </div>
+        </footer>
+
+        <div class="admin-icon" onclick="toggleAdminPanel()">⚙</div>
+
+        <div class="admin-panel" id="adminPanel">
+            <a href="admin-notifications.html" class="admin-module">
+                <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                <span>Notificaciones</span>
+            </a>
+            <a href="admin-libros.html" class="admin-module">
+                <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm6-10H6v-2h12v2z"/></svg>
+                <span>Libros</span>
+            </a>
+            <a href="admin-calificaciones.html" class="admin-module">
+                <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                <span>Calificaciones</span>
+            </a>
+        </div>
+
+        <div class="scroll-to-top" id="scrollToTop">
+            <span>↑</span>
+        </div>
+
+        <div class="connection-status" id="connectionStatus">🟢 En línea</div>
+    </div>
+
+    <script src="pwa-constants.js"></script>
+    <script src="pwa-installer.js"></script>
+    <script src="pwa-network.js"></script>
+
+    <script>
+    // Registrar Service Worker simplificado
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            // Usar ruta relativa para mayor compatibilidad
+            navigator.serviceWorker.register('pwa-sw.js')
+                .then(reg => console.log('✅ Service Worker registrado:', reg))
+                .catch(err => console.error('❌ Error registrando Service Worker:', err));
+        });
+    }
+    </script>
+
+    <script src="templatemo-3d-coverflow-scripts.js"></script>
+    <script>
+        
+        let isOnline = navigator.onLine;
+
+        // Verificar conexión
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            const status = document.getElementById('connectionStatus');
+            
+            if (isOnline) {
+                indicator.style.display = 'none';
+                status.textContent = '🟢 En línea';
+                status.style.color = '#4caf50';
+            } else {
+                indicator.style.display = 'block';
+                status.textContent = '🔴 Offline';
+                status.style.color = '#f44336';
+            }
+        }
+
+        // Eventos de conexión
+        window.addEventListener('online', function() {
+            isOnline = true;
+            updateConnectionStatus();
+            console.log('Conexión restaurada');
+        });
+
+        window.addEventListener('offline', function() {
+            isOnline = false;
+            updateConnectionStatus();
+            console.log('Sin conexión a internet');
+        });
+
+        // Verificar si hay una sesión activa al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            updateConnectionStatus();
+            checkSession();
+        });
+
+        function checkSession() {
+            const userData = localStorage.getItem('userSession');
+            
+            if (userData) {
+                // Si hay sesión guardada, mostrar el dashboard
+                const user = JSON.parse(userData);
+                showDashboard(user);
+            } else {
+                // Si no hay sesión, mostrar el login
+                showLogin();
+            }
+        }
+
+        function login() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+
+            if (!email || !password) {
+                alert('Por favor, ingresa correo y contraseña.');
+                return;
+            }
+
+            // En modo offline, permitir login con credenciales básicas
+            if (!isOnline) {
+                const userData = {
+                    email: email,
+                    name: email.split('@')[0],
+                    loginTime: new Date().toISOString(),
+                    offline: true
+                };
+                localStorage.setItem('userSession', JSON.stringify(userData));
+                showDashboard(userData);
+                alert('Modo offline: Sesión iniciada localmente');
+                return;
+            }
+
+            fetch('inicioSesion.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Guardar información del usuario en localStorage
+                    const userData = {
+                        email: email,
+                        name: email.split('@')[0], // Usar parte del email como nombre
+                        loginTime: new Date().toISOString()
+                    };
+                    localStorage.setItem('userSession', JSON.stringify(userData));
+                    
+                    showDashboard(userData);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // En caso de error de conexión, permitir login offline
+                if (!isOnline) {
+                    const userData = {
+                        email: email,
+                        name: email.split('@')[0],
+                        loginTime: new Date().toISOString(),
+                        offline: true
+                    };
+                    localStorage.setItem('userSession', JSON.stringify(userData));
+                    showDashboard(userData);
+                    alert('Modo offline: Sesión iniciada localmente');
+                } else {
+                    alert('Error al conectar con el servidor.');
+                }
+            });
+        }
+
+        function showDashboard(user) {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('dashboard').classList.add('active');
+            document.querySelector('.admin-icon').classList.add('visible');
+            
+            // Mostrar información del usuario
+            document.getElementById('userMenu').style.display = 'flex';
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0).toUpperCase();
+
+            // Mostrar indicador de modo offline si es aplicable
+            if (user.offline) {
+                const status = document.getElementById('connectionStatus');
+                status.textContent = '🟡 Modo offline';
+                status.style.color = '#ff9800';
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginSection').style.display = 'flex';
+            document.getElementById('dashboard').classList.remove('active');
+            document.querySelector('.admin-icon').classList.remove('visible');
+            document.getElementById('userMenu').style.display = 'none';
+            
+            // Limpiar campos del login
+            document.getElementById('emailInput').value = '';
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function logout() {
+            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                // Eliminar la sesión del localStorage
+                localStorage.removeItem('userSession');
+                
+                // Mostrar el formulario de login
+                showLogin();
+                
+                alert('Sesión cerrada correctamente.');
+            }
+        }
+
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminPanel');
+            panel.classList.toggle('active');
+        }
+
+        document.addEventListener('click', (event) => {
+            const panel = document.getElementById('adminPanel');
+            const icon = document.querySelector('.admin-icon');
+            if (!panel.contains(event.target) && !icon.contains(event.target)) {
+                panel.classList.remove('active');
+            }
+        });
+
+        window.addEventListener('scroll', () => {
+            const scrollToTop = document.getElementById('scrollToTop');
+            if (window.scrollY > 300) {
+                scrollToTop.classList.add('visible');
+            } else {
+                scrollToTop.classList.remove('visible');
+            }
+        });
+
+        scrollToTop.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Verificar si hay calificaciones pendientes de sincronización
+        function checkPendingSync() {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(function(registration) {
+                    // Verificar si hay datos pendientes en IndexedDB
+                    const request = indexedDB.open('LibreryDB', 1);
+                    request.onsuccess = function(event) {
+                        const db = event.target.result;
+                        if (db.objectStoreNames.contains('calificacionesPendientes')) {
+                            const transaction = db.transaction(['calificacionesPendientes'], 'readonly');
+                            const store = transaction.objectStore('calificacionesPendientes');
+                            const countRequest = store.count();
+                            
+                            countRequest.onsuccess = function() {
+                                if (countRequest.result > 0) {
+                                    console.log('Calificaciones pendientes encontradas:', countRequest.result);
+                                    // Opcional: mostrar notificación al usuario
+                                }
+                            };
+                        }
+                    };
+                });
+            }
+        }
+
+        // Verificar sincronización pendiente al cargar
+        setTimeout(checkPendingSync, 2000);
+    </script>
+</body>
+</html>

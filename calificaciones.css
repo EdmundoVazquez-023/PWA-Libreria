@@ -1,0 +1,390 @@
+/* * ESTILOS GLOBALES Y DE DISEÑO DE TEMA OSCURO
+ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* CORREGIDO: box-sizing: border-box; */
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* Fondo radial de tema oscuro */
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f0f 100%);
+    color: white;
+    padding: 80px 20px 20px;
+}
+
+/* * ENCABEZADO (HEADER)
+ */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    transition: all 0.3s ease;
+}
+
+.header.scrolled {
+    background: rgba(0, 0, 0, 0.95);
+    height: 70px;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.logo-container:hover {
+    transform: translateY(-2px);
+}
+
+.logo img {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+}
+
+.logo-text {
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+/* * CONTENEDOR PRINCIPAL Y FORMULARIO
+ */
+.calificaciones-container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+h2 {
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+    /* Gradiente para el título */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+input, textarea, select {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: white;
+    font-size: 16px;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+select {
+    appearance: none;
+    /* Flecha de selección SVG */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: 600;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+}
+
+#error-message {
+    color: #ff6b6b;
+    margin: 10px 0;
+    text-align: center;
+}
+
+/* * SECCIÓN DE CALIFICACIONES - CONTENEDOR
+ */
+.calificaciones-table-container {
+    margin-top: 40px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Ya no es necesario overflow: visible aquí */
+}
+
+.table-header {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-header h3 {
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* ================================================= */
+/* ESTILOS DE LA CUADRÍCULA (RESPONSIVA) */
+/* ================================================= */
+
+/* ESTILOS BASE (MÓVILES Y COMPORTAMIENTO DE SCROLL HORIZONTAL) */
+.calificaciones-grid {
+    /* Mantiene el diseño horizontal y el scroll en pantallas pequeñas */
+    display: flex; 
+    overflow-x: auto; 
+    overflow-y: hidden; 
+    padding: 20px; 
+    gap: 20px; 
+    -webkit-overflow-scrolling: touch; 
+    /* Ocultar la barra de desplazamiento horizontal (solo para estética) */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.calificaciones-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.calificacion-card {
+    /* En modo flex (móvil), define el ancho y asegura que no se encoja */
+    flex-shrink: 0; 
+    width: 300px; 
+    
+    /* Propiedades de diseño de la tarjeta */
+    display: flex;
+    justify-content: space-between; 
+    align-items: flex-start; 
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); 
+    background-color: rgba(255, 255, 255, 0.05); 
+    transition: all 0.3s ease;
+    min-height: 120px; 
+    margin-bottom: 0; 
+}
+
+/* HOVER (Aplicable a ambas vistas) */
+.calificacion-card:hover {
+    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+    transform: translateY(-3px);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* DETALLES DE LA TARJETA INDIVIDUAL */
+.calificacion-info {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.libro-titulo {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+    /* --- CAMBIOS AQUÍ: Para que el título se ajuste y se trunque en 2 líneas --- */
+    /* Eliminamos: white-space: nowrap; */
+    
+    /* Requerido para truncamiento de múltiples líneas */
+    display: -webkit-box; 
+    -webkit-line-clamp: 2; /* Límite de 2 líneas para el título */
+    line-clamp: 2; /* Propiedad estándar */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    /* -------------------------------------------------------------------------- */
+}
+
+.calificacion-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 5px 0 10px;
+    flex-wrap: wrap;
+}
+
+.libro-id {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 15px;
+}
+
+.resena-text {
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.4;
+    /* Límite de 3 líneas en reseña para mantener el diseño limpio */
+    display: -webkit-box; /* Requerido para -webkit-line-clamp */
+    -webkit-line-clamp: 3; /* Prefijo del vendedor (WebKit/Blink) */
+    line-clamp: 3; /* Propiedad estándar */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calificacion-stars {
+    flex-shrink: 0;
+    text-align: center;
+    padding: 10px 15px;
+    border-radius: 10px;
+    background: #4a148c; /* Morado oscuro */
+    color: #ffd700; /* Amarillo/Dorado para las estrellas */
+    font-weight: bold;
+}
+
+.stars-value {
+    font-size: 1.5em;
+    line-height: 1;
+}
+
+.stars-label {
+    font-size: 0.7em;
+    font-weight: normal;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 3px;
+}
+
+/* ================================================= */
+/* MEDIA QUERY PARA TABLETS Y ESCRITORIO (min-width: 768px) */
+/* ================================================= */
+
+@media (min-width: 768px) {
+    .calificaciones-grid {
+        /* Solución: Usamos Grid para manejar el espaciado (gap) perfectamente */
+        display: grid;
+        /* Permitimos que se adapte con un min-width de 280px para ver más tarjetas */
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px; /* CLAVE: Esto establece el espacio perfecto entre columnas Y FILAS */
+        overflow-x: hidden; /* No hay scroll horizontal en desktop */
+        overflow-y: visible; 
+        padding: 0;
+    }
+
+    .calificacion-card {
+        /* Reseteamos las propiedades de flex-wrap para que Grid las maneje */
+        width: auto;
+        flex-shrink: 1;
+        
+        /* Ajuste de diseño interno para desktop */
+        display: grid; 
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        border-radius: 15px; 
+        padding: 20px;
+
+        /* Eliminamos el borde inferior que generaba la apariencia de lista pegada */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+    }
+
+    .calificacion-card:last-child {
+         border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Mantenemos el borde para que se vea uniforme */
+    }
+
+    .calificaciones-table-container {
+        overflow: visible; 
+    }
+
+    .resena-text {
+        /* Permitir más líneas de texto en escritorio */
+        -webkit-line-clamp: 4; 
+        line-clamp: 4; 
+    }
+}
+
+/* * MEDIA QUERIES PARA ADAPTACIONES GENERALES
+ */
+@media (max-width: 768px) {
+    /* Aquí se mantiene el comportamiento de scroll horizontal (flex) */
+    .calificaciones-grid {
+        display: flex; 
+        flex-wrap: nowrap; /* Asegura el scroll horizontal */
+    }
+    
+    .calificaciones-container {
+        padding: 20px;
+        max-width: 95%;
+    }
+
+    .header {
+        padding: 0 20px;
+    }
+
+    .logo img {
+        width: 40px;
+        height: 40px;
+    }
+
+    .logo-text {
+        font-size: 18px;
+    }
+
+    .calificacion-meta {
+        gap: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .calificaciones-container {
+        padding: 15px;
+        margin: 30px auto;
+    }
+
+    input, textarea, select {
+        padding: 12px;
+        font-size: 14px;
+    }
+
+    button {
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    .calificacion-card {
+        padding: 15px;
+    }
+}

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="Libreria.ico" sizes="128x128">
+    <link rel="shortcut icon" href="Libreria.ico">
+    <link rel="apple-touch-icon" href="Libreria.png">
+    <link rel="stylesheet" href="libros.css">
+    <title>Gestión de Libros - Admin</title>
+    <style>
+        .offline-indicator {
+            background: #ff9800;
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: none;
+        }
+        .sync-pending {
+            background: #2196f3;
+            color: white;
+        }
+        .offline-pending {
+            border-left: 4px solid #ff9800;
+        }
+        .sync-status {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+            display: none;
+        }
+        .sync-success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }
+        .sync-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #f44336;
+        }
+        .offline-badge {
+            background: #ff9800;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 8px;
+        }
+        .error-message {
+            display: none;
+            color: #c62828;
+            margin: 10px 0;
+        }
+        .notification-status {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .notification-enabled {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }
+        .notification-disabled {
+            background: #fff3e0;
+            color: #ef6c00;
+            border: 1px solid #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-indicator" id="offlineIndicator">
+        ⚠️ Modo offline - Los libros se guardarán localmente (sin portada)
+    </div>
+    <header class="header">
+        <a href="index.html" class="logo-container">
+            <div class="logo">
+                <img src="images/logo_libros.jpg" alt="Logo Librery">
+            </div>
+            <div class="logo-text">Librery</div>
+        </a>
+        <div class="connection-status" id="connectionStatus"></div>
+    </header>
+    <div class="container">
+        <div class="form-section">
+            <h2>Registrar Nuevo Libro</h2>
+            <div class="sync-status" id="syncStatus"></div>
+            <div class="notification-status" id="notificationStatus" style="display: none;"></div>
+            <div class="error-message" id="error-message"></div>
+            <div class="form-group">
+                <label for="libroId">ID Libro</label>
+                <input type="number" id="libroId" placeholder="ID Libro (auto)" readonly>
+            </div>
+            <div class="form-group">
+                <label for="libroTitulo">Título</label>
+                <input type="text" id="libroTitulo" placeholder="Título" required>
+            </div>
+            <div class="form-group">
+                <label for="libroAutor">Autor</label>
+                <input type="text" id="libroAutor" placeholder="Autor" required>
+            </div>
+            <div class="form-group">
+                <label for="libroFecha">Fecha de Publicación</label>
+                <input type="date" id="libroFecha" required>
+            </div>
+            <div class="form-group">
+                <label for="libroPortada">Portada</label>
+                <input type="file" id="libroPortada" accept="image/*">
+                <small>Nota: Las imágenes no se guardan offline (máx. 5MB)</small>
+            </div>
+            <div class="form-group">
+                <label for="libroResena">Reseña</label>
+                <textarea id="libroResena" placeholder="Reseña" required></textarea>
+            </div>
+            <button onclick="saveLibro()" id="saveButton">Guardar Libro</button>
+            <div class="loader" id="mainLoader">Cargando...</div>
+        </div>
+        <div class="book-list-container">
+            <div class="table-header">
+                <h3>📚 Lista de Libros</h3>
+                <div class="table-actions">
+                    <button onclick="toggleOfflineData()" id="toggleOfflineBtn">
+                        Mostrar datos offline
+                    </button>
+                    <button onclick="forceSync()" id="syncButton" style="display: none;">
+                        🔄 Sincronizar
+                    </button>
+                </div>
+            </div>
+            <div class="book-list" id="librosList"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="pwa-constants.js"></script>
+    
+    <script>
+        let isOnline = navigator.onLine;
+        let showingOfflineData = false;
+        let pendingLibros = [];
+        let cachedLibros = [];
+        let messaging = null;
+
+        // Inicializar Firebase Messaging
+        function initializeFirebaseMessaging() {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                
+                messaging = firebase.messaging();
+                
+                // Manejar mensajes en primer plano
+                messaging.onMessage((payload) => {
+                    console.log('📬 Mensaje en primer plano:', payload);
+                    showNotificationStatus('📚 Nueva notificación: ' + (payload.notification?.body || 'Nuevo libro agregado'), 'enabled');
+                });
+
+                updateNotificationStatus();
+                
+            } catch (error) {
+                console.error('Error inicializando Firebase Messaging:', error);
+                showNotificationStatus('❌ Error en notificaciones: ' + error.message, 'disabled');
+            }
+        }
+
+        // Verificar estado de notificaciones
+        function updateNotificationStatus() {
+            const statusElement = document.getElementById('notificationStatus');
+            
+            if (!messaging) {
+                statusElement.textContent = '🔔 Notificaciones no inicializadas';
+                statusElement.className = 'notification-status notification-disabled';
+                statusElement.style.display = 'block';
+                return;
+            }
+
+            Notification.requestPermission().then((permission) => {
+                if (permission === 'granted') {
+                    statusElement.textContent = '✅ Notificaciones activas - Se notificarán nuevos libros';
+                    statusElement.className = 'notification-status notification-enabled';
+                } else {
+                    statusElement.textContent = '🔕 Notificaciones bloqueadas - Actívalas para recibir avisos';
+                    statusElement.className = 'notification-status notification-disabled';
+                }
+                statusElement.style.display = 'block';
+            });
+        }
+
+        function showNotificationStatus(message, type) {
+            const status = document.getElementById('notificationStatus');
+            status.textContent = message;
+            status.className = `notification-status ${type === 'enabled' ? 'notification-enabled' : 'notification-disabled'}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        function showLoader(show) {
+            document.getElementById('mainLoader').style.display = show ? 'block' : 'none';
+        }
+
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            const status = document.getElementById('connectionStatus');
+            const syncButton = document.getElementById('syncButton');
+            if (isOnline) {
+                indicator.style.display = 'none';
+                status.textContent = '🟢 En línea';
+                status.style.color = '#4caf50';
+                syncButton.style.display = pendingLibros.length > 0 ? 'inline-block' : 'none';
+            } else {
+                indicator.style.display = 'block';
+                status.textContent = '🔴 Offline';
+                status.style.color = '#f44336';
+                syncButton.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('online', () => {
+            isOnline = true;
+            updateConnectionStatus();
+            showSyncStatus('Conectado - Sincronizando automáticamente...', 'success');
+            setTimeout(checkAndSyncPending, 1000);
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            updateConnectionStatus();
+            showSyncStatus('Sin conexión - Los datos se guardarán localmente (sin portada)', 'error');
+        });
+
+        function fetchLibros() {
+            showLoader(true);
+            if (!isOnline && !showingOfflineData) {
+                showLoader(false);
+                loadLibrosFromCache();
+                return;
+            }
+            fetch('gestionLibros.php?action=lista&db=librocalif')
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta: ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    showLoader(false);
+                    if (data.success) {
+                        cachedLibros = data.libros || [];
+                        saveToCache('libros', cachedLibros);
+                        displayLibros(cachedLibros);
+                    } else {
+                        throw new Error(data.message);
+                    }
+                })
+                .catch(() => {
+                    showLoader(false);
+                    loadLibrosFromCache();
+                });
+        }
+
+        function loadLibrosFromCache() {
+            getFromCache('libros').then(libros => {
+                const allLibros = [...(libros || []), ...pendingLibros];
+                displayLibros(allLibros);
+                if (!libros && !pendingLibros.length) {
+                    showSyncStatus('No hay libros disponibles offline', 'error');
+                }
+            });
+        }
+
+        function displayLibros(libros) {
+            const list = document.getElementById('librosList');
+            if (!libros || libros.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div>📚</div>
+                        <div>No se encontraron libros</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Agrega tu primer libro</div>
+                    </div>`;
+                return;
+            }
+            list.innerHTML = '';
+            libros.forEach(libro => {
+                const div = document.createElement('div');
+                div.className = 'book-card';
+                if (libro.offline || libro.status === 'pending') {
+                    div.classList.add('offline-pending');
+                }
+                
+                let imageHtml = '<div class="no-image">📖 Sin imagen</div>';
+                if (libro.portada && !libro.offline) {
+                    try {
+                        const byteCharacters = atob(libro.portada);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                        const imageUrl = URL.createObjectURL(blob);
+                        
+                        // Usar un ID único para la imagen
+                        const imageId = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                        imageHtml = `<img src="${imageUrl}" class="book-image" alt="Portada" id="${imageId}">`;
+                        
+                        // Programar la revocación después de que la imagen se cargue
+                        setTimeout(() => {
+                            const imgElement = document.getElementById(imageId);
+                            if (imgElement) {
+                                imgElement.onload = function() {
+                                    if (window.URL && typeof window.URL.revokeObjectURL === 'function') {
+                                        window.URL.revokeObjectURL(this.src);
+                                    }
+                                };
+                                // También manejar errores de carga
+                                imgElement.onerror = function() {
+                                    console.error('Error cargando imagen para libro:', libro.titulo);
+                                    this.outerHTML = '<div class="no-image">📖 Error imagen</div>';
+                                };
+                            }
+                        }, 100);
+                        
+                    } catch (e) {
+                        console.error('Error procesando imagen:', e);
+                        imageHtml = '<div class="no-image">📖 Sin imagen</div>';
+                    }
+                }
+                
+                div.innerHTML = `
+                    ${imageHtml}
+                    <div class="book-info">
+                        <div class="book-title">
+                            ${libro.titulo}
+                            ${libro.offline ? '<span class="offline-badge">Pendiente</span>' : ''}
+                        </div>
+                        <div class="book-author">por ${libro.autor}</div>
+                        <div class="book-date">${libro.fechaPublicacion}</div>
+                        <div class="book-review">${libro.resena}</div>
+                    </div>`;
+                list.appendChild(div);
+            });
+        }
+
+        function saveLibro() {
+            const errorMsg = document.getElementById('error-message');
+            errorMsg.textContent = '';
+            errorMsg.style.display = 'none';
+
+            const libro = {
+                titulo: document.getElementById('libroTitulo').value.trim(),
+                autor: document.getElementById('libroAutor').value.trim(),
+                fechaPublicacion: document.getElementById('libroFecha').value,
+                resena: document.getElementById('libroResena').value.trim()
+            };
+
+            if (!libro.titulo || !libro.autor || !libro.fechaPublicacion || !libro.resena) {
+                errorMsg.textContent = 'Todos los campos obligatorios deben estar llenos.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const portadaFile = document.getElementById('libroPortada').files[0];
+            if (portadaFile && isOnline) {
+                if (portadaFile.size > 5 * 1024 * 1024) {
+                    errorMsg.textContent = 'La imagen no debe exceder 5MB.';
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+            } else if (portadaFile && !isOnline) {
+                showSyncStatus('La portada no se guardará offline. Sube la imagen cuando estés en línea.', 'error');
+            }
+
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = true;
+            saveButton.textContent = 'Guardando...';
+
+            const formData = new FormData();
+            formData.append('action', 'guardar');
+            formData.append('db', 'librocalif');
+            formData.append('titulo', libro.titulo);
+            formData.append('autor', libro.autor);
+            formData.append('fechaPublicacion', libro.fechaPublicacion);
+            formData.append('resena', libro.resena);
+            if (portadaFile && isOnline) {
+                formData.append('portada', portadaFile);
+            }
+
+            fetch('gestionLibros.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error en la respuesta: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Guardar Libro';
+
+                if (data.success) {
+                    showSyncStatus(
+                        data.offline
+                            ? 'Libro guardado localmente. Se sincronizará cuando haya conexión (sin portada).'
+                            : 'Libro guardado exitosamente.',
+                        'success'
+                    );
+
+                    // Limpiar formulario
+                    document.getElementById('libroId').value = '';
+                    document.getElementById('libroTitulo').value = '';
+                    document.getElementById('libroAutor').value = '';
+                    document.getElementById('libroFecha').value = '';
+                    document.getElementById('libroResena').value = '';
+                    document.getElementById('libroPortada').value = '';
+
+                    if (data.offline) {
+                        const newLibro = {
+                            id: data.localId,
+                            ...libro,
+                            offline: true,
+                            status: 'pending'
+                        };
+                        pendingLibros = [newLibro, ...pendingLibros];
+                        displayLibros(showingOfflineData ? [...cachedLibros, ...pendingLibros] : cachedLibros);
+                    } else {
+                        fetchLibros(); // Recarga desde el servidor
+                    }
+                } else {
+                    errorMsg.textContent = 'Error: ' + data.message;
+                    errorMsg.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Guardar Libro';
+                errorMsg.textContent = 'Error al guardar: ' + error.message;
+                errorMsg.style.display = 'block';
+                showSyncStatus('Error al guardar el libro', 'error');
+            });
+        }
+
+        function loadPendingLibros() {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                const messageChannel = new MessageChannel();
+                messageChannel.port1.onmessage = event => {
+                    if (event.data.type === 'PENDING_LIBROS') {
+                        pendingLibros = event.data.data.map(libro => ({
+                            ...libro,
+                            offline: true
+                        }));
+                        updateConnectionStatus();
+                        if (showingOfflineData) {
+                            displayLibros([...cachedLibros, ...pendingLibros]);
+                        }
+                    }
+                };
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'PENDING_LIBROS'
+                }, [messageChannel.port2]);
+            } else {
+                pendingLibros = [];
+                updateConnectionStatus();
+                if (showingOfflineData) {
+                    displayLibros(cachedLibros);
+                }
+            }
+        }
+
+        function checkAndSyncPending() {
+            if (pendingLibros.length > 0 && isOnline && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(registration => {
+                    return registration.sync.register('libros-sync');
+                }).catch(() => {
+                    showSyncStatus('Error al registrar sincronización', 'error');
+                });
+            }
+        }
+
+        function forceSync() {
+            checkAndSyncPending();
+        }
+
+        function toggleOfflineData() {
+            showingOfflineData = !showingOfflineData;
+            const button = document.getElementById('toggleOfflineBtn');
+            if (showingOfflineData) {
+                button.textContent = 'Mostrar datos del servidor';
+                button.classList.add('sync-pending');
+                displayLibros([...cachedLibros, ...pendingLibros]);
+            } else {
+                button.textContent = 'Mostrar datos offline';
+                button.classList.remove('sync-pending');
+                fetchLibros();
+            }
+        }
+
+        function showSyncStatus(message, type) {
+            const status = document.getElementById('syncStatus');
+            status.textContent = message;
+            status.className = `sync-status ${type === 'success' ? 'sync-success' : 'sync-error'}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        // Funciones auxiliares para cache
+        function saveToCache(key, data) {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem(key, JSON.stringify(data));
+            }
+        }
+
+        function getFromCache(key) {
+            return new Promise((resolve) => {
+                if (typeof localStorage !== 'undefined') {
+                    const data = localStorage.getItem(key);
+                    resolve(data ? JSON.parse(data) : null);
+                } else {
+                    resolve(null);
+                }
+            });
+        }
+
+        window.onload = () => {
+            // Inicializar Firebase Messaging
+            initializeFirebaseMessaging();
+         
+            updateConnectionStatus();
+            loadPendingLibros();
+            setTimeout(fetchLibros, 500);
+            
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.addEventListener('message', event => {
+                    if (event.data.type === 'syncCompleted') {
+                        showSyncStatus(
+                            `Sincronización completada: ${event.data.successful} exitosas, ${event.data.failed} fallidas`,
+                            event.data.failed === 0 ? 'success' : 'error'
+                        );
+                        loadPendingLibros();
+                        if (!showingOfflineData) {
+                            fetchLibros();
+                        }
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>
